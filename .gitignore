@@ -1,3 +1,4 @@
 gazebo/catkin_ws/devel
 gazebo/catkin_ws/build
 gazebo/catkin_ws/.catkin_workspace
+gazebo/catkin_ws/src/CMakeLists.txt
