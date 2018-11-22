@@ -3,6 +3,7 @@
 <launch>
 
   <include file="$(find skid_steer_bot)/launch/robot_description.launch"/>
+
   <arg name="world" default="empty"/>
   <arg name="paused" default="false"/>
   <arg name="use_sim_time" default="true"/>
