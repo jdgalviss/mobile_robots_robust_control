@@ -92,20 +92,14 @@ int main(int argc, char **argv)
             }
             else
             {
-                //ROS_INFO("segmento terminado1");
                 isCalculated = false;
                 t0 = (double)point.tf;
-                //ROS_INFO("segmento terminado2");
                 ++it;
-                //ROS_INFO("segmento terminado2.5");
                 if (it != points.end())
                     point = *it;
-                //ROS_INFO("segmento terminado3");
                 ++it_prev;
-                //ROS_INFO("segmento terminado4");
                 if (it_prev != points.end())
                     point_prev = *it_prev;
-                //ROS_INFO("segmento terminado");
             }
         }
         else

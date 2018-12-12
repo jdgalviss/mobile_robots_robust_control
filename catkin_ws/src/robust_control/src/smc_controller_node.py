@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import datetime
 import time
 import rospy
@@ -8,132 +7,42 @@ import functools
 from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
-from agv_prueba.msg import refAGV
+from soft_trajectory_generation.msg import refAGV
 from controllers import SlidingModeController
 
 
-def callback_ref(data_ref, smc):
-    global x_ref
-    global y_ref
-    global th_ref
-    global om_ref
-    global alpha_ref
-    global vx_ref
-    global ax_ref
-
-
-    x_ref = data_ref.x
-    y_ref = data_ref.y
-    th_ref = data_ref.th
-    om_ref = data_ref.w
-    alpha_ref = data_ref.al
-    vx_ref = data_ref.vx
-    ax_ref = data_ref.ax
+def callback_ref(data, smc):
+    smc.pose_ref = np.array([data.x, data.y, data.yaw])
+    smc.vel_ref = np.array([data.vx, data.vy, data.yaw_speed])
+    smc.accel_ref = np.array([data.ax, data.ay, data.yaw_acceleration])
+    smc.vx_local_ref = data.vx_local
     #rospy.loginfo(data_ref)
 
 
-def callback_pose(data_pose, smc):
-    global x
-    global y
-    global th
-    global om
-    global alpha
-    global vx_local
-    global ax
+def callback_pose(data, smc):
+    #Calculate current yaw from quaternion
+    yaw = math.atan2((2*(data.pose.orientation.w*data.pose.orientation.z)),((1-2*(math.pow(data.pose.orientation.z,2)))))
+    if(yaw - smc.pose_real[2] > 1):
+        yaw = yaw -2*math.pi
+    if(yaw - smc.pose_real[2] < -1):
+        yaw = yaw + 2*math.pi
 
-    global x_prev
-    global y_prev
-    global th_prev
-    global vx_prev
-    global vy_prev
-    global om_prev
-    global current_time
-    global end_time
-
-    global vx_acc
-    global vy_acc
-    global om_acc
-    global ax_acc
-    global alpha_acc
-
-    global vx2
-    global vy2
-    global om2
-    global ax2
-    global alpha2
-
-    global count_filter
-    global count_filter2
-    #get the data from the topic
-    x=data_pose.pose.position.x
-    y=data_pose.pose.position.y
-    w=data_pose.pose.orientation.w
-    z=data_pose.pose.orientation.z
-    #th = math.atan2((2*w*z),(1-2*(math.pow(z,2))))
-    aux = (1-2*(math.pow(z,2)))
-    th = math.atan2((2*(w*z)),((1-2*(math.pow(z,2))))) 
-    if aux == 0:
-	th = 1.5708
-    if(th-th_prev > 1):
-	th = th - 2*math.pi
-
-    if(th-th_prev < -1):
-	th = th + 2*math.pi
- 
-    #th = data_pose.pose.orientation.x
-    #rospy.loginfo(th)
-    #delta time
+    #Calculate speeds
     current_time = rospy.get_time()
-    dt = current_time - end_time
-    #rospy.loginfo(dt)
-    #dt = 1/50.0
+    dt = current_time - smc.last_time
+    actual_pose = np.array([data.pose.position.x, data.pose.position.y, yaw])
+    actual_speed = (actual_pose - smc.pose_real) / dt
+    smc.pose_real = np.copy(actual_pose)
 
-    #differentiate position and get velocities in global frame
-    if(count_filter < 20):
-        vx_acc = vx_acc + (x-x_prev)/dt
-        vy_acc = vy_acc + (y-y_prev)/dt
-        om_acc = om_acc + (th-th_prev)/dt
-        count_filter = count_filter + 1
-    else:
-        vx2 = vx_acc/20.0
-        vy2 = vy_acc/20.0
-        om2 = om_acc/20.0
+    #calculate accelerations
+    smc.accel_ref = (actual_speed - smc.speed_real) / dt
+    smc.speed_real = np.copy(actual_speed)
 
-        vx_acc = 0.0
-        vy_acc = 0.0
-        om_acc = 0.0
-        count_filter = 0
-    
-    #transform velocity to local frame
-    vx_local = vx2*math.cos(th)+vy2*math.sin(th)
-    vy_local = -vx2*math.sin(th)+vy2*math.cos(th)
-    om = om2
-    #rospy.loginfo("om:" + str(om) + "vx_local: " + str(vx_local))
-
-    #Get accelerations in local frame
-    if(count_filter2 < 20):
-        ax_acc = ax_acc + (vx_local-vx_prev)/dt
-        alpha_acc = alpha_acc + (om-om_prev)/dt
-        count_filter2 = count_filter2 + 1
-    else:
-        ax2 = ax_acc/20.0
-        alpha2 = alpha_acc/20.0
-        ax_acc = 0.0
-        alpha_acc = 0.0
-        count_filter2 = 0
-
-    ax = ax2
-    alpha = alpha2
-
-    #Save prev values
-    x_prev=x
-    y_prev=y
-    th_prev=th
-    vx_prev=vx_local
-    vy_prev=vy_local
-    om_prev=om
-    end_time = rospy.get_time()
-    #rospy.loginfo(data_pose)
+    #calculate speed in local frame
+    vel_local = smc.speed_real[0]*math.cos(smc.pose_real[2])+smc.speed_real[1]*math.sin(smc.pose_real[2])
+    smc.accel_local_real = (vel_local - smc.vel_local_real) / dt
+    smc.vel_local_real = vel_local
+    smc.last_time = current_time
 
 def sign(num):
     if num==0:
@@ -145,66 +54,25 @@ def sign(num):
             return-1
 
 def smc_controller():
-    global x_ref
-    global y_ref
-    global th_ref
-    global om_ref
-    global alpha_ref
-    global vx_ref
-    global ax_ref
-
-    global x
-    global y
-    global th
-    global om
-    global alpha
-    global vx_local
-    global ax
-
-    global x_prev
-    global y_prev
-    global th_prev
-    global vx_prev
-    global vy_prev
-    global om_prev
-    global current_time2
-    global end_time2
-    global vx_int
-    global om_int
-
-
-    #sign = functools.partial(math.copysign, 1) # either of these
 
     var = 1
     smc = SlidingModeController()
     rospy.init_node('/sliding_mode_controller', anonymous=True)
     pub = rospy.Publisher('mobile_base/commands/velocity', Twist, queue_size=50)
-    rospy.Subscriber('refAGV', refAGV, callback_ref, smc)
+    rospy.Subscriber('/trajectory/current', refAGV, callback_ref, smc)
     rospy.Subscriber('slam_out_pose', PoseStamped, callback_pose, smc)
 
-    rate = rospy.Rate(50) # 50hz
-
+    rate = rospy.Rate(40) # 50hz
     #log to file to analyse data
     file2 = open('hector_smc.txt', 'w')
     while not rospy.is_shutdown():
-        #Kinematic controller parameters
-        k1 = 3.0/10.0
-        P = 1.0/10.0
-        Q = 1.0/10.0
-        P2 = 0.05
-        Q2 = 7.0
-        k0=10.0*10.0
-        k2=5.0*2.0
-        #ky1 = 1.0
-        #kt1 = 1.0
+        #calculate tracking error
+        smc.calculate_error()
+
+        #Calculate derivate of the error
+        smc.calculate_d_error()
         
 
-        #Calculate error
-        xe = math.cos(th_ref)*(x_ref-x)+math.sin(th_ref)*(y_ref-y)
-        ye = -(-math.sin(th_ref)*(x_ref-x)+math.cos(th_ref)*(y_ref-y))
-        th_e = (th_ref-th)
-        th_e2 = th_e
-        
         #Avoid very big vx_dot for square movement (th_e=pi/2 and cos(th_e)= 0)
         #if (abs(th_e) > 1.5 ) & (abs(th_e) < 1.65 ):
 	#	th_e2 = 0.0 
