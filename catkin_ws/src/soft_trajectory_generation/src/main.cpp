@@ -26,35 +26,40 @@ int main(int argc, char **argv)
     //std::vector<float> y_ref{ 0.0, 4.0, 4.0, 0.0,  0.0 }
     //std::vector<float> yaw_ref{ 0.0, M_PI/2.0, M_PI, 3.0*M_PI / 4.0,  2.0*M_PI }
     //std::vector<float> time_ref{ 2.0, 4.0, 4.0, 4.0,  2.0 }
-    //each point has {xf,yf,yaw0, yawF, vf, time(global)}
+    //each point has {xf,yf,yaw0, yawF, vf, yaw_speed_f, af, yaw_acc_f, time(global)}
     //=============================defininf square trajectory=====================
-    Point p0(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    Point p1(2.0, 0.0, 0.0, 0.0, 0.0, 2.0);
-    Point p2(2.0, 4.0, M_PI / 2.0, M_PI / 2.0, 0.0, 6.0);
-    Point p3(-2.0, 4.0, M_PI, M_PI, 0.0, 10.0);
-    Point p4(-2.0, 0.0, 3.0 * M_PI / 2.0, 3.0 * M_PI / 2.0, 0.0, 14.0);
-    Point p5(0.0, 0.0, M_PI * 2.0, M_PI * 2.0, 0.0, 16.0);
+    Point p0(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    Point p1(2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0);
+    Point p2(2.0, 4.0, M_PI / 2.0, M_PI / 2.0, 0.0, 0.0, 0.0, 0.0, 6.0);
+    Point p3(-2.0, 4.0, M_PI, M_PI, 0.0, 0.0, 0.0, 0.0, 10.0);
+    Point p4(-2.0, 0.0, 3.0 * M_PI / 2.0, 3.0 * M_PI / 2.0, 0.0, 0.0, 0.0, 0.0, 14.0);
+    Point p5(0.0, 0.0, M_PI * 2.0, M_PI * 2.0, 0.0, 0.0, 0.0, 0.0, 16.0);
     //===========================defining circle trajectory=================
     float radius = 2.0f;
     float final_time = 20.0f;
-    Point initial_angle(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    Point final_angle(2*M_PI, 0.0, 0.0, 0.0, 0.0, final_time);
+    Point initial_angle(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    Point final_angle(2*M_PI, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, final_time);
     circle_angle->calculateSpline(final_angle, initial_angle);
     std::vector<Point> circle_points;
     circle_points.push_back(initial_angle);
     ros::Time startTime = ros::Time::now();
     float yaw_0 = 0.0f;
-    for (float t = 0; t <= final_time; t=t+0.1){
+    for (float t = 0; t <= final_time; t=t+0.5){
         
         float angle = circle_angle->getX(t);
         float x = radius * cos(angle-M_PI/2);
         float y = radius * sin(angle-M_PI/2) + radius;
-        float vf = radius * circle_angle->getVx(t);
-        Point point(x, y, yaw_0, angle, vf, t);
+        
+        float yaw_speed = circle_angle->getVx(t);
+        float vf = radius * yaw_speed;
+
+        float yaw_acc = circle_angle->getAx(t);
+        float af = radius*yaw_acc;
+        Point point(x, y, yaw_0, angle, vf, yaw_speed, af, yaw_acc, t);
         yaw_0 = angle;
         circle_points.push_back(point);
-        ROS_INFO("t: %0.4f", t);
-        ROS_INFO("angle: %0.4f", angle);    
+       // ROS_INFO("t: %0.4f", t);
+        ROS_INFO("angle: %0.4f", yaw_acc);    
     }
 
     //std::vector<Point> points{p0, p1, p2, p3, p4, p5};

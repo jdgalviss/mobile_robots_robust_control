@@ -7,13 +7,16 @@
 class Point
 {
   public:
-    Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float t_f);
+    Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float yaw_speed_f, float a_f, float yaw_acc_f, float t_f);
     float xf;
     float yf;
     float yaw0;
     float yawf;
     float vf;
     float tf;
+    float d_yawf;
+    float af;
+    float d_d_yawf;
 };
 class Trajectory
 {
@@ -27,6 +30,7 @@ class Trajectory
     soft_trajectory_generation::Trajectory trajectoryMsg;
     float getX(double current_time);
     float getVx(double current_time);
+    float getAx(double current_time);
 
   protected:
     float ax[5][3];
