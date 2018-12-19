@@ -72,7 +72,7 @@ def calculate_pose(trans, rot, smc):
     yaw = math.atan2((2*(rot[3]*rot[2])),
                      ((1-2*(math.pow(rot[2], 2)))))
     if(not smc.enable):
-        print("calculating offset")
+        #print("calculating offset")
         smc.offset = np.array([trans[0], trans[1], yaw])
     #if(yaw - smc.pos_real[2] > 1):
     #    yaw = yaw - 2*math.pi

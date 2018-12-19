@@ -39,8 +39,8 @@ class SlidingModeController(KinematicController):
         self.last_time_pose = initial_time
         self.last_time_control = initial_time
         self.k0 = 10.0
-        self.k1 = 1.0
-        self.k2 = 10.0
+        self.k1 = 5.0
+        self.k2 = 30.0
         self.P = np.array([0.1, 0.1])
         self.Q = np.array([1.0, 1.0])
         self.s = np.zeros((2,), dtype=float)
@@ -71,11 +71,11 @@ class SlidingModeController(KinematicController):
         #yaw = self.pos_real[2]
         #yaw_ref = self.pos_ref[2]
         if(self.pos_ref[2] - self.pos_real[2] > 1.5*3.1416):
-            print("yaw_real negative, yaw_ref positive" + str(self.pos_real[2]) + "  " + str(self.pos_ref[2]) )
+            #print("yaw_real negative, yaw_ref positive" + str(self.pos_real[2]) + "  " + str(self.pos_ref[2]) )
             self.pos_real[2]= self.pos_real[2] + 2*3.1416
         else:
             if(self.pos_real[2]- self.pos_ref[2] > 1.5 * 3.1416):
-                print("yaw_real positive, yaw_ref negative" + str(self.pos_real[2]) + "  " + str(self.pos_ref[2]) )
+                #print("yaw_real positive, yaw_ref negative" + str(self.pos_real[2]) + "  " + str(self.pos_ref[2]) )
                 self.pos_real[2]= self.pos_real[2] - 2*3.1416
 
         error_q = self.pos_ref - self.pos_real
