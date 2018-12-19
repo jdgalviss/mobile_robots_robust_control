@@ -17,14 +17,14 @@ void Trajectory::calculateSpline(Point point, Point point_prev){
     float s0_x = point_prev.xf;
     float vi_x = point_prev.vf * cos(point_prev.yawf);
     float vf_x = point.vf * cos(point.yawf);
-    float ai_x = point_prev.af * cos(point_prev.yawf);
-    float af_x = point.af * cos(point.yawf);
+    float ai_x = point_prev.afx * cos(point_prev.yawf) - point_prev.afy * sin(point_prev.yawf);
+    float af_x = point.afx * cos(point.yawf) - point.afy * sin(point.yawf);
     float sf_y = point.yf;
     float s0_y = point_prev.yf;
     float vi_y = point_prev.vf * sin(point_prev.yawf);
     float vf_y = point.vf * sin(point.yawf);
-    float ai_y = point_prev.af * sin(point_prev.yawf);
-    float af_y = point.af * sin(point.yawf);
+    float ai_y = point_prev.afx * sin(point_prev.yawf) + point_prev.afy * cos(point_prev.yawf);
+    float af_y = point.afx * sin(point.yawf) + point.afy * cos(point.yawf);
     float sf_th = point.yawf;
     float s0_th = point.yaw0;
     float vi_th = point_prev.d_yawf;
@@ -84,7 +84,7 @@ void Trajectory::publishTrajectory(double current_time){
     trajectoryMsg.yaw_acceleration = profile.at(2);
 
     trajectoryMsg.vx_local = std::sqrt( std::pow(trajectoryMsg.vx,2) + std::pow(trajectoryMsg.vy,2) );
-
+    trajectoryMsg.ax_local = trajectoryMsg.ax * cos(trajectoryMsg.yaw) + trajectoryMsg.ay * sin(trajectoryMsg.yaw);
     trajectoryPub.publish(trajectoryMsg);
 
 }
@@ -166,7 +166,7 @@ Trajectory::~Trajectory()
     ROS_INFO("Killing soft trajectory");
 }
 
-Point::Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float yaw_speed_f, float a_f, float yaw_acc_f, float t_f){
+Point::Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float yaw_speed_f, float a_fx, float a_fy, float yaw_acc_f, float t_f){
     xf = x_f;
     yf = y_f;
     yaw0 = yaw_0;
@@ -174,7 +174,8 @@ Point::Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float ya
     vf = v_f;
     tf = t_f;
     d_yawf = yaw_speed_f;
-    af = a_f;
+    afx = a_fx;
+    afy = a_fy;
     d_d_yawf = yaw_acc_f;
 
 }

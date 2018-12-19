@@ -7,7 +7,7 @@
 class Point
 {
   public:
-    Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float yaw_speed_f, float a_f, float yaw_acc_f, float t_f);
+    Point(float x_f, float y_f, float yaw_0, float yaw_f, float v_f, float yaw_speed_f, float a_fx, float a_fy, float yaw_acc_f, float t_f);
     float xf;
     float yf;
     float yaw0;
@@ -15,7 +15,8 @@ class Point
     float vf;
     float tf;
     float d_yawf;
-    float af;
+    float afx;
+    float afy;
     float d_d_yawf;
 };
 class Trajectory
