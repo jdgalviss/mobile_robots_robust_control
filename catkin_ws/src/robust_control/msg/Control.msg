@@ -8,6 +8,15 @@ float32 d_yaw_e
 float32 x
 float32 y
 float32 yaw
+float32 d_x
+float32 d_y
+float32 d_yaw
+float32 x_ref
+float32 y_ref
+float32 yaw_ref
+float32 d_x_ref
+float32 d_y_ref
+float32 d_yaw_ref
 float32 vx_local_ref
 float32 vx_local
 float32 vc
