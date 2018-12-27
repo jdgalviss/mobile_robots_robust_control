@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 from soft_trajectory_generation.msg import Trajectory
 from controllers import SlidingModeController
 from robust_control.msg import Control
+import csv
 
 
 def callback_ref(data, smc):
@@ -22,7 +23,7 @@ def callback_ref(data, smc):
     smc.vel_ref = np.array([data.vx, data.vy, data.yaw_speed])
     smc.accel_ref = np.array([data.ax, data.ay, data.yaw_acceleration])
     smc.vel_local_ref = data.vx_local
-    #smc.accel_local_ref = data.ax_local
+    smc.accel_local_ref = data.ax_local
     if(not smc.enable and smc.vel_local_ref != 0.0):
         smc.enable = True
         
@@ -104,7 +105,7 @@ def calculate_pose(trans, rot, smc):
         vel_local = smc.vel_real[0]*math.cos(smc.pos_real[2]) + \
                                              smc.vel_real[1] * \
                                                  math.sin(smc.pos_real[2])
-        #smc.accel_local_real = (vel_local - smc.vel_local_real) / dt
+        smc.accel_local_real = (vel_local - smc.vel_local_real) / dt
         #smc.accel_local_real = 0.0
         smc.vel_local_real = vel_local
     else:
@@ -123,75 +124,83 @@ def smc_controller():
 
     rate = rospy.Rate(50)  # 50hz
     # log to file to analyse data
-    file2 = open('hector_smc.txt', 'w')
-    while not rospy.is_shutdown():
-        # Find current robot position using transform
-        try:
-            (trans, rot) = listener.lookupTransform('/odom', '/chassis', rospy.Time(0))
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            continue
-        calculate_pose(trans,rot,smc) 
-        if(smc.enable):
+    initial_time = rospy.get_time()
+    with open('simulation_smc_data.csv', mode='w') as csv_file:
+        fieldnames = ['time', 'x', 'y', 'yaw', 'd_x', 'd_y', 'd_yaw', 'x_ref', 'y_ref', 'yaw_ref', 'd_x_ref', 'd_y_ref', 'd_yaw_ref','xe', 'ye', 'yaw_e', 'vx_local', 'vx_local_ref', 'vc', 'wc' ]
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+        while not rospy.is_shutdown():
+            # Find current robot position using transform
+            try:
+                (trans, rot) = listener.lookupTransform('/odom', '/chassis', rospy.Time(0))
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+            calculate_pose(trans,rot,smc) 
+            if(smc.enable):
+                
+                # calculate tracking error
+                smc.calculate_error()
+                # Calculate derivate of the error
+                smc.calculate_d_error()
+                # Kinematic controller formula
+                smc.calculate_control(rospy.get_time())
+            # publish cmd topic
+            cmd_msg = Twist()
+            if(smc.u_control[0] > 1.0):
+                cmd_msg.linear.x = 1.0
+            else:
+                if(smc.u_control[0] < 0.0):
+                    cmd_msg.linear.x = 0.0
+                else:
+                    cmd_msg.linear.x = smc.u_control[0]
             
-            # calculate tracking error
-            smc.calculate_error()
-            # Calculate derivate of the error
-            smc.calculate_d_error()
-            # Kinematic controller formula
-            smc.calculate_control(rospy.get_time())
-        # publish cmd topic
-        cmd_msg = Twist()
-        if(smc.u_control[0] > 1.0):
-            cmd_msg.linear.x = 1.0
-        else:
-            if(smc.u_control[0] < 0.0):
-                cmd_msg.linear.x = 0.0
+            if(smc.u_control[1] > 3.0):
+                cmd_msg.angular.z = 3.0
             else:
-                cmd_msg.linear.x = smc.u_control[0]
-        
-        if(smc.u_control[1] > 3.0):
-            cmd_msg.angular.z = 3.0
-        else:
-            if(smc.u_control[1] < -3.0):
-                cmd_msg.angular.z = -3.0
-            else:
-                cmd_msg.angular.z = smc.u_control[1]
-        cmd_pub.publish(cmd_msg)
-        # publish control Topic for debug
-        control = Control()
-        control.header.stamp = rospy.Time.now()
-        control.xe = smc.error[0]
-        control.ye = smc.error[1]
-        control.yaw_e = smc.error[2]
-        control.d_xe = smc.d_error[0]
-        control.d_ye = smc.d_error[1]
-        control.d_yaw_e = smc.d_error[2]
-        control.x =  smc.pos_real[0]
-        control.y = smc.pos_real[1]
-        control.yaw = smc.pos_real[2]
-        control.d_x =  smc.vel_real[0]
-        control.d_y = smc.vel_real[1]
-        control.d_yaw = smc.vel_real[2]
-        control.x_ref =  smc.pos_ref[0]
-        control.y_ref = smc.pos_ref[1]
-        control.yaw_ref = smc.pos_ref[2]
-        control.d_x_ref =  smc.vel_ref[0]
-        control.d_y_ref = smc.vel_ref[1]
-        control.d_yaw_ref = smc.vel_ref[2]
-        control.vx_local_ref = smc.vel_local_ref
-        control.vx_local = smc.vel_local_real
-        control.vc = cmd_msg.linear.x 
-        control.wc = cmd_msg.angular.z 
-        log_pub.publish(control)
-        rate.sleep()
-"""
-	# log to file to analyse data
-	file2.write(str(x) + ' ' + str(y) + ' ' + str(th) + ' ' + str(vx_local) + ' ' + str(om) + ' ' + str(alpha) + ' ' + str(ax) + ' ' + str(x_ref) + ' ' + str(y_ref) + ' ' + str(th_ref) + ' ' + str(vx_ref) + ' ' + str(om_ref) + ' ' + str(alpha_ref) + ' ' + str(ax_ref) + ' ' + str(vx_cmd) + ' ' + str(om_cmd) + ' ' + str(current_time2) + '\n') 
-	file2.write('')
-        pub.publish(cmd_msg)
-        rate.sleep()
-    file2.close()
-"""
+                if(smc.u_control[1] < -3.0):
+                    cmd_msg.angular.z = -3.0
+                else:
+                    cmd_msg.angular.z = smc.u_control[1]
+            cmd_pub.publish(cmd_msg)
+            # publish control Topic for debug
+            control = Control()
+            control.header.stamp = rospy.Time.now()
+            control.xe = smc.error[0]
+            control.ye = smc.error[1]
+            control.yaw_e = smc.error[2]
+            control.d_xe = smc.d_error[0]
+            control.d_ye = smc.d_error[1]
+            control.d_yaw_e = smc.d_error[2]
+            control.x =  smc.pos_real[0]
+            control.y = smc.pos_real[1]
+            control.yaw = smc.pos_real[2]
+            control.d_x =  smc.vel_real[0]
+            control.d_y = smc.vel_real[1]
+            control.d_yaw = smc.vel_real[2]
+            control.x_ref =  smc.pos_ref[0]
+            control.y_ref = smc.pos_ref[1]
+            control.yaw_ref = smc.pos_ref[2]
+            control.d_x_ref =  smc.vel_ref[0]
+            control.d_y_ref = smc.vel_ref[1]
+            control.d_yaw_ref = smc.vel_ref[2]
+            control.vx_local_ref = smc.vel_local_ref
+            control.vx_local = smc.vel_local_real
+            control.vc = cmd_msg.linear.x 
+            control.wc = cmd_msg.angular.z 
+            log_pub.publish(control)
+
+            #Save info to csv
+            if(smc.enable):
+                current_time = (rospy.get_time() - initial_time)
+                writer.writerow({'time':current_time, 'x': str(control.x), 'y': str(control.y), 'yaw': str(control.yaw),
+                                'd_x': str(control.d_x), 'd_y': str(control.d_y), 'd_yaw': str(control.d_yaw),
+                                'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw': str(control.yaw_ref),
+                                'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
+                                'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
+                                'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),
+                                'vc': str(control.vc),'wc': str(control.wc)})
+            rate.sleep()
+
 
 if __name__ == '__main__':
     try:
