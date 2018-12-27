@@ -2,8 +2,8 @@ import numpy as np
 import math
 import rospy
 
-class KinematicController():
-    def __init__(self):
+class KinematicController(object):
+    def __init__(self, initial_time):
         self.error = np.zeros((3,), dtype=float)
         self.d_error = np.zeros((3,), dtype=float)
         self.pos_real = np.zeros((3,), dtype=float)
@@ -18,6 +18,20 @@ class KinematicController():
         self.accel_local_ref = 0.0 
         self.T_local_glob = np.zeros((3,3), dtype=float)
         self.u_control = np.zeros((2,), dtype=float)
+        self.last_time_pose = initial_time
+        self.last_time_control = initial_time
+        self.enable = False
+        self.filter_pos = np.empty((0,3), float)
+        self.offset = np.zeros((6,), dtype=float)
+
+    def filter_position(self, actual_position):
+        if(abs(actual_position[0][2]-self.pos_real[2]) > math.pi): #from pi to -pi
+                self.filter_pos = np.copy(actual_position) #reset filter
+        else:
+            self.filter_pos = np.append(self.filter_pos, actual_position, axis=0)
+            if(self.filter_pos.shape[0] > 4):
+                self.filter_pos = np.delete(self.filter_pos, (0), axis=0)
+        self.pos_real = np.average(self.filter_pos, axis=0)
 
     def calculate_error(self):
         #yaw = self.pos_real[2]
@@ -43,33 +57,14 @@ class KinematicController():
 
 class SlidingModeController(KinematicController):
     def __init__(self, initial_time):
-        self.error = np.zeros((3,), dtype=float)
-        self.d_error = np.zeros((3,), dtype=float)
-        self.pos_real = np.zeros((3,), dtype=float)
-        self.pos_ref = np.zeros((3,), dtype=float)
-        self.vel_real = np.zeros((3,), dtype=float)
-        self.vel_ref = np.zeros((3,), dtype=float)
-        self.accel_real = np.zeros((3,), dtype=float)
-        self.accel_ref = np.zeros((3,), dtype=float)
-        self.vel_local_real = 0.0     
-        self.vel_local_ref = 0.0 
-        self.accel_local_real = 0.0     
-        self.accel_local_ref = 0.0 
-        self.T_local_glob = np.zeros((3,3), dtype=float)
-        self.u_control = np.zeros((2,), dtype=float)
-        self.last_time_pose = initial_time
-        self.last_time_control = initial_time
+        super(SlidingModeController, self).__init__(initial_time)
         self.k0 = 20.0
         self.k1 = 5.0
         self.k2 = 25.0
         self.P = np.array([0.1, 0.1])
         self.Q = np.array([2.0, 2.0])
         self.s = np.zeros((2,), dtype=float)
-        self.d_s = np.zeros((2,), dtype=float)
-        self.enable = False
-        self.filter_count = 0
-        self.filter_pos = np.empty((0,3), float)
-        self.offset = np.zeros((6,), dtype=float)
+
 
     def sign(self,num):
         if num == 0:
@@ -78,15 +73,6 @@ class SlidingModeController(KinematicController):
             return 1
         else:
             return-1
-    
-    def filter_position(self, actual_position):
-        if(abs(actual_position[0][2]-self.pos_real[2]) > math.pi): #from pi to -pi
-                self.filter_pos = np.copy(actual_position) #reset filter
-        else:
-            self.filter_pos = np.append(self.filter_pos, actual_position, axis=0)
-            if(self.filter_pos.shape[0] > 4):
-                self.filter_pos = np.delete(self.filter_pos, (0), axis=0)
-        self.pos_real = np.average(self.filter_pos, axis=0)
 
     def calculate_control(self, current_time):
         s1 = self.d_error[0] + self.k1*self.error[0]
@@ -123,6 +109,7 @@ class SlidingModeController(KinematicController):
             #self.u_control[0] = d_vc
             self.u_control[1] = omega_c
         #print("dt =" + str(dt) + " in calculate control " + str(current_time) + " and "  + str(self.last_time_control))
+
 class StableController(KinematicController):
     def __init__(self):
         self.k_yaw = 0.0
