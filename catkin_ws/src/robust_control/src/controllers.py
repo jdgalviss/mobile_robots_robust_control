@@ -78,13 +78,6 @@ class SlidingModeController(KinematicController):
         s1 = self.d_error[0] + self.k1*self.error[0]
         s2 = self.d_error[1] + self.k2*self.error[1] + self.error[2]*self.sign(self.error[1])*self.k0
         
-        # #vx_dot = (ax_ref+ye_dot*om_ref+ye*alpha_ref+vx_local*math.sin(th_e)*th_e_dot+k1*xe_dot+Q*s1+P*sign(s1))/1.0
-        # d_vc = (self.accel_ref[0]+self.d_error[1]*self.vel_ref[2]+self.error[1]*self.accel_ref[2]+self.vel_local_real*math.sin(self.error[2])*self.d_error[2]+self.k1*self.d_error[0]+self.Q[0]*s1+self.P[0]*self.sign(s1))/1.0	    
-        
-        # #om_dot = (-Q2*s2-P2*sign(s2)+xe_dot*om_ref+xe*alpha_ref-ax*math.sin(th_e)-vx_local*math.cos(th_e)*th_e_dot-k2*ye_dot)/(-k0*sign(ye))+om_ref	
-        # omega_c_num = (-self.Q[1]*s2-self.P[1]*self.sign(s2)+self.d_error[0]*self.vel_ref[2] + 
-        #                 self.error[0]*self.accel_ref[2]-self.accel_real[0]*math.sin(self.error[2])-self.vel_local_real*math.cos(self.error[2])*self.d_error[2]-self.k2*self.d_error[1])
-        # omega_c_div = (-self.k0*self.sign(self.error[1]))+self.vel_ref[2]	
         if(math.cos(self.error[2]) != 0.0 ):
             d_vc = ( (self.Q[0]*s1 + self.P[0]*self.sign(s1) + self.accel_ref[2]*self.error[1] + \
                     self.vel_ref[2]*self.d_error[1] + self.accel_local_ref + self.k1*self.d_error[0] + \
@@ -111,8 +104,14 @@ class SlidingModeController(KinematicController):
         #print("dt =" + str(dt) + " in calculate control " + str(current_time) + " and "  + str(self.last_time_control))
 
 class StableController(KinematicController):
-    def __init__(self):
-        self.k_yaw = 0.0
-        self.k_x = 0.0
-        self.k_y = 0.0 
+    def __init__(self, initial_time):
+        super(StableController, self).__init__(initial_time)
+        self.k_yaw = 1.0
+        self.k_x = 1.0
+        self.k_y = 1.0 
+
+    def calculate_control(self, current_time):
+        vc = self.vel_local_ref*math.cos(self.error[2]) + self.k_x * self.error[0]
+        wc = self.vel_ref[2] + self.k_y*self.vel_local_ref*self.error[1] + self.k_yaw*self.vel_local_ref*math.sin(self.error[2])
+        self.u_control = np.array([vc, wc])
         
