@@ -106,9 +106,21 @@ class SlidingModeController(KinematicController):
 class StableController(KinematicController):
     def __init__(self, initial_time):
         super(StableController, self).__init__(initial_time)
-        self.k_yaw = 1.0
-        self.k_x = 1.0
-        self.k_y = 1.0 
+        self.k_yaw = 2.0
+        self.k_x = 0.5
+        self.k_y = 5.0 
+
+    def calculate_control(self, current_time):
+        vc = self.vel_local_ref*math.cos(self.error[2]) + self.k_x * self.error[0]
+        wc = self.vel_ref[2] + self.k_y*self.vel_local_ref*self.error[1] + self.k_yaw*self.vel_local_ref*math.sin(self.error[2])
+        self.u_control = np.array([vc, wc])
+
+class AdaptiveNNController(KinematicController):
+    def __init__(self, initial_time):
+        super(StableController, self).__init__(initial_time)
+        self.k_yaw = 2.0
+        self.k_x = 0.5
+        self.k_y = 5.0 
 
     def calculate_control(self, current_time):
         vc = self.vel_local_ref*math.cos(self.error[2]) + self.k_x * self.error[0]
