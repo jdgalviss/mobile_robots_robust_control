@@ -117,10 +117,18 @@ class StableController(KinematicController):
 
 class AdaptiveNNController(KinematicController):
     def __init__(self, initial_time):
-        super(StableController, self).__init__(initial_time)
+        super(AdaptiveNNController, self).__init__(initial_time)
         self.k_yaw = 2.0
         self.k_x = 0.5
-        self.k_y = 5.0 
+        self.k_y = 5.0
+        #Network Parameters
+        self.num_outputs = 3
+        self.num_hidden = 30
+        self.num_inputs = 2
+        #Backpropagation parameters
+        self.gamma = np.matrix([[1.0 , 0, 0],[0, 1.0, 0],[0, 0, 1.0]])
+        self.betta = np.array([1.0, 3.0, 4.0])
+
 
     def calculate_control(self, current_time):
         vc = self.vel_local_ref*math.cos(self.error[2]) + self.k_x * self.error[0]
