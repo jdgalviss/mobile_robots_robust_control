@@ -10,7 +10,7 @@ from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 from soft_trajectory_generation.msg import Trajectory
-from controllers import StableController
+from controllers import AdaptiveNNController
 from robust_control.msg import Control
 import csv
 
