@@ -147,10 +147,9 @@ class AdaptiveNNController(KinematicController):
         self.num_outputs = 3
         self.num_hidden = 30
         self.num_inputs = 3
-        self.batch_size = 500
         # Backpropagation parameters
         self.gamma = np.matrix([[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
-        self.betta = np.array([0.0, 0.0, 0.0])
+        self.betta = np.array([1.0, 4.0, 3.0])
 
         # Network parameters
         self.v_weight = (np.random.rand(
@@ -159,24 +158,15 @@ class AdaptiveNNController(KinematicController):
             self.num_hidden, self.num_outputs) - 0.5)*0.1
         self.bias_hidden = (np.random.rand(self.num_hidden) - 0.5)*0.1
         self.bias_out = (np.random.rand(self.num_outputs) - 0.5)*0.1
+        self.accuracy = 0.0
 
         # Network IO
         self.nn_input = np.zeros((self.num_inputs,), dtype=float)
         self.nn_output = np.zeros((self.num_outputs,), dtype=float)
-        self.nn_input_train = np.empty((0, self.num_inputs), float)
-        self.nn_output_train = np.empty((0, self.num_outputs), float)
-
-        # Model
-        self.model = None
-        try:
-            self.model = load_model('agv_model.h5')
-            # TO DO: save weights in variable
-        except:
-            print("no model has been saved yet")
 
         # Training thread
         self.t = threading.Thread(target=self.train_NN)
-        self.training = False
+        
 
     def calculate_control(self, current_time):
         vc = self.vel_local_ref * \
@@ -222,45 +212,36 @@ class AdaptiveNNController(KinematicController):
         dF_da = -self.error*self.gamma*self.T*dqi_dzk*dzl_dxj*duc_da
 
         # Gradiend-descend algorithm to recalculate controller parameters
-        self.k_x = self.k_x - self.betta[0] * dF_da[0, 0]
-        self.k_y = self.k_y - self.betta[1] * dF_da[0, 1]
-        self.k_yaw = self.k_yaw - self.betta[2] * dF_da[0, 2]
+        if(self.accuracy > 0.8):
+            self.k_x = self.k_x - self.betta[0] * dF_da[0, 0]
+            self.k_y = self.k_y - self.betta[1] * dF_da[0, 1]
+            self.k_yaw = self.k_yaw - self.betta[2] * dF_da[0, 2]
 
-        # Capture data for training
-        if(not self.training):
-            print(self.nn_input_train.shape)
-            if(self.nn_input_train.shape[0] < self.batch_size):
-                self.nn_input_train = np.append(
-                    self.nn_input_train, np.array([self.nn_input]), axis=0)
-                self.nn_output_train = np.append(
-                    self.nn_output_train, np.array([self.vel_real]), axis=0)
-            else:
-                # Train NN
-                if(self.model is None):
-                    self.model = Sequential()
-                    self.model.add(Dense(
-                        self.num_hidden, activation='sigmoid', input_dim=self.num_inputs, init='normal'))
-                    self.model.add(
-                        Dense(self.num_outputs, activation='linear', init='normal'))
-                    # ===============Configure training process====================
-                    # Before training, configure training process (this is called compile) receives: Optimizer,loss (objective) function, metrics
-                    # For a mean squared error regression problem
-                    self.model.compile(
-                        loss='mean_squared_error', optimizer='rmsprop', metrics=['accuracy'])
-                # ====================Do the actual training============
-                self.training = True
-                self.model.fit(self.nn_input_train,
-                            self.nn_output_train, epochs=100, verbose=1)
-                scores = self.model.evaluate(self.nn_input_train, self.nn_output_train, verbose=1)
-                self.nn_input_train = np.empty((0, self.num_inputs), float)
-                self.nn_output_train = np.empty((0, self.num_outputs), float)
-                self.training = False
 
-    def train_NN(self):
-        self.training = True
-        self.model.fit(self.nn_input_train,
-                       self.nn_output_train, epochs=100, verbose=1)
-        scores = self.model.evaluate(self.nn_input_train, self.nn_output_train, verbose=1)
+class NeuralNetwork(object):
+    def __init__(self):
         self.nn_input_train = np.empty((0, self.num_inputs), float)
         self.nn_output_train = np.empty((0, self.num_outputs), float)
         self.training = False
+        self.num_outputs = 3
+        self.num_hidden = 30
+        self.num_inputs = 3
+        self.batch_size = 500
+        # Model
+        # Network parameters
+        self.v_weight = (np.random.rand(
+            self.num_inputs, self.num_hidden) - 0.5)*0.1  #3x30
+        self.w_weight = (np.random.rand(
+            self.num_hidden, self.num_outputs) - 0.5)*0.1 #30x
+        self.bias_hidden = (np.random.rand(self.num_hidden) - 0.5)*0.1
+        self.bias_out = (np.random.rand(self.num_outputs) - 0.5)*0.1
+        self.model = None
+        try:
+            self.model = load_model('agv_model.h5')
+            self.v_weight = self.model.layers[0].get_weights()[0] #3x30
+		    self.bias_hidden = self.model.layers[0].get_weights()[1]
+		    self.w_weight = self.model.layers[1].get_weights()[0] #30x3
+		    self.bias_out = self.model.layers[1].get_weights()[1]
+            # TO DO: save weights in variable
+        except:
+            print("no model has been saved yet")

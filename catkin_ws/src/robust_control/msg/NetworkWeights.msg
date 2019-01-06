@@ -1,0 +1,9 @@
+float64[] weightsV_1
+float64[] weightsV_2
+float64[] weightsV_3
+float64[] weightsW_1
+float64[] weightsW_2
+float64[] weightsW_3
+float64[] bias_hidden
+float64[] bias_out
+float32 accuracy

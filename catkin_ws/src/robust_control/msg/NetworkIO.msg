@@ -1,0 +1,3 @@
+Header Header
+geometry_msgs/Vector3 nn_input
+geometry_msgs/Vector3 nn_output

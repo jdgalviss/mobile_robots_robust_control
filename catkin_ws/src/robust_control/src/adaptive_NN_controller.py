@@ -12,6 +12,8 @@ from geometry_msgs.msg import Twist
 from soft_trajectory_generation.msg import Trajectory
 from controllers import AdaptiveNNController
 from robust_control.msg import Control
+from robust_control.msg import NetworkIO
+from robust_control.msg import NetworkWeights
 import csv
 
 
@@ -112,14 +114,26 @@ def calculate_pose(trans, rot, adaptive_NN_controller):
         rospy.loginfo("dt = 0 in callback pose")
     adaptive_NN_controller.last_time_pose = current_time
 
+def callback_weights(data, adaptive_NN_controller):
+    adaptive_NN_controller.accuracy = data.accuracy
+    if(data.accuracy > 80):
+        adaptive_NN_controller.v_weight = np.array([data.weightsV_1,data.weightsV_2,data.weightsV_3])
+        adaptive_NN_controller.w_weight = np.transpose(np.array([data.weightsW_1,data.weightsW_2,data.weightsW_3]))
+        adaptive_NN_controller.bias_hidden = data.bias_hidden
+        adaptive_NN_controller.bias_out = data.bias_out
+    else: 
+        rospy.loginfo("accuracy too low: " + str(data.accuracy))
+
 
 def adaptive_NN_controller():
     rospy.init_node('adaptive_NN_controller', anonymous=True)
     listener = tf.TransformListener()
     adaptive_NN_controller = AdaptiveNNController(rospy.get_time())
     cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=50)
-    log_pub = rospy.Publisher('control_log', Control, queue_size=50)
+    log_pub = rospy.Publisher('/control_log', Control, queue_size=50)
+    nn_pub = rospy.Publisher('/network_io', NetworkIO, queue_size=50)
     rospy.Subscriber('/trajectory/current', Trajectory, callback_ref, adaptive_NN_controller)
+    rospy.Subscriber('/network_weights', NetworkWeights, callback_weights, adaptive_NN_controller)
     # rospy.Subscriber('slam_out_pose', PoseStamped, callback_pose, adaptive_NN_controller)
 
     rate = rospy.Rate(50)  # 50hz
@@ -188,6 +202,18 @@ def adaptive_NN_controller():
             control.vc = cmd_msg.linear.x 
             control.wc = cmd_msg.angular.z 
             log_pub.publish(control)
+
+            #Publish for network training
+            nn_io = NetworkIO()
+            nn_io.header.stamp = rospy.Time.now()
+            nn_io.nn_input.x = adaptive_NN_controller.nn_input[0]
+            nn_io.nn_input.y = adaptive_NN_controller.nn_input[1]
+            nn_io.nn_input.z = adaptive_NN_controller.nn_input[2]
+            nn_io.nn_output.x = adaptive_NN_controller.vel_real[0]
+            nn_io.nn_output.y = adaptive_NN_controller.vel_real[1]
+            nn_io.nn_output.z = adaptive_NN_controller.vel_real[2]
+            nn_pub.publish(nn_io)
+
 
             #Save info to csv
             if(adaptive_NN_controller.enable):
