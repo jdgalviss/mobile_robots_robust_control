@@ -165,8 +165,7 @@ class AdaptiveNNController(KinematicController):
         self.nn_output = np.zeros((self.num_outputs,), dtype=float)
 
         # Training thread
-        self.t = threading.Thread(target=self.train_NN)
-        
+        #self.t = threading.Thread(target=self.train_NN)
 
     def calculate_control(self, current_time):
         vc = self.vel_local_ref * \
@@ -230,18 +229,19 @@ class NeuralNetwork(object):
         # Model
         # Network parameters
         self.v_weight = (np.random.rand(
-            self.num_inputs, self.num_hidden) - 0.5)*0.1  #3x30
+            self.num_inputs, self.num_hidden) - 0.5)*0.1  # 3x30
         self.w_weight = (np.random.rand(
-            self.num_hidden, self.num_outputs) - 0.5)*0.1 #30x
+            self.num_hidden, self.num_outputs) - 0.5)*0.1  # 30x
         self.bias_hidden = (np.random.rand(self.num_hidden) - 0.5)*0.1
         self.bias_out = (np.random.rand(self.num_outputs) - 0.5)*0.1
         self.model = None
+        self.firstPublish = False
         try:
             self.model = load_model('agv_model.h5')
-            self.v_weight = self.model.layers[0].get_weights()[0] #3x30
-		    self.bias_hidden = self.model.layers[0].get_weights()[1]
-		    self.w_weight = self.model.layers[1].get_weights()[0] #30x3
-		    self.bias_out = self.model.layers[1].get_weights()[1]
+            self.v_weight = self.model.layers[0].get_weights()[0]  # 3x30
+            self.bias_hidden = self.model.layers[0].get_weights()[1]
+            self.w_weight = self.model.layers[1].get_weights()[0]  # 30x3
+            self.bias_out = self.model.layers[1].get_weights()[1]
             # TO DO: save weights in variable
         except:
             print("no model has been saved yet")

@@ -56,6 +56,7 @@ def train_nn():
         if(neural_network.training):
             neural_network.model.fit(neural_network.nn_input_train,
                                      neural_network.nn_output_train, epochs=100, verbose=1)
+            model.save("agv_model.h5")
             scores = neural_network.model.evaluate(
                 neural_network.nn_input_train, neural_network.nn_output_train, verbose=1)
             rospy.loginfo("Model Accuracy: %.2f%%" % (scores[1]*100))
@@ -87,7 +88,8 @@ def train_nn():
             nn_pub.publish(nn_weights)
             neural_network.training = False
 
-        if(not neural_networks.firstPublish):
+        if(not neural_network.firstPublish):
+            neural_network.firstPublish = True
             nn_weights.header.stamp = rospy.Time.now()
             nn_weights.weightsV_1 = neural_network.v_weight[0]
             nn_weights.weightsV_2 = neural_network.v_weight[1]
