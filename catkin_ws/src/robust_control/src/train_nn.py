@@ -56,7 +56,7 @@ def train_nn():
         if(neural_network.training):
             neural_network.model.fit(neural_network.nn_input_train,
                                      neural_network.nn_output_train, epochs=100, verbose=1)
-            model.save("agv_model.h5")
+            neural_network.model.save("agv_model.h5")
             scores = neural_network.model.evaluate(
                 neural_network.nn_input_train, neural_network.nn_output_train, verbose=1)
             rospy.loginfo("Model Accuracy: %.2f%%" % (scores[1]*100))
