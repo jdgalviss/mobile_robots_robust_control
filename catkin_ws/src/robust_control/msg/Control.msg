@@ -21,3 +21,6 @@ float32 vx_local_ref
 float32 vx_local
 float32 vc
 float32 wc
+float32 kx
+float32 ky
+float32 kt

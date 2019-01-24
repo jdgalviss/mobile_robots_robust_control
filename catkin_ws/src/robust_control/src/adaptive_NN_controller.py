@@ -136,11 +136,14 @@ def adaptive_NN_controller():
     rospy.Subscriber('/network_weights', NetworkWeights, callback_weights, adaptive_NN_controller)
     # rospy.Subscriber('slam_out_pose', PoseStamped, callback_pose, adaptive_NN_controller)
 
+    nn_io = NetworkIO()
+    control = Control()
+
     rate = rospy.Rate(50)  # 50hz
     # log to file to analyse data
     initial_time = rospy.get_time()
     with open('simulation_adaptive_NN_controller_data.csv', mode='w') as csv_file:
-        fieldnames = ['time', 'x', 'y', 'yaw', 'd_x', 'd_y', 'd_yaw', 'x_ref', 'y_ref', 'yaw_ref', 'd_x_ref', 'd_y_ref', 'd_yaw_ref','xe', 'ye', 'yaw_e', 'vx_local', 'vx_local_ref', 'vc', 'wc' ]
+        fieldnames = ['time', 'x', 'y', 'yaw', 'd_x', 'd_y', 'd_yaw', 'x_ref', 'y_ref', 'yaw_ref', 'd_x_ref', 'd_y_ref', 'd_yaw_ref','xe', 'ye', 'yaw_e', 'vx_local', 'vx_local_ref', 'vc', 'wc', 'kx', 'ky', 'kt' ]
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         while not rospy.is_shutdown():
@@ -177,7 +180,7 @@ def adaptive_NN_controller():
                     cmd_msg.angular.z = adaptive_NN_controller.u_control[1]
             cmd_pub.publish(cmd_msg)
             # publish control Topic for debug
-            control = Control()
+            
             control.header.stamp = rospy.Time.now()
             control.xe = adaptive_NN_controller.error[0]
             control.ye = adaptive_NN_controller.error[1]
@@ -199,20 +202,24 @@ def adaptive_NN_controller():
             control.d_yaw_ref = adaptive_NN_controller.vel_ref[2]
             control.vx_local_ref = adaptive_NN_controller.vel_local_ref
             control.vx_local = adaptive_NN_controller.vel_local_real
+            control.kx = adaptive_NN_controller.k_x
+            control.ky = adaptive_NN_controller.k_y
+            control.kt = adaptive_NN_controller.k_yaw
             control.vc = cmd_msg.linear.x 
             control.wc = cmd_msg.angular.z 
+            
             log_pub.publish(control)
 
             #Publish for network training
-            nn_io = NetworkIO()
-            nn_io.header.stamp = rospy.Time.now()
-            nn_io.nn_input.x = adaptive_NN_controller.nn_input[0]
-            nn_io.nn_input.y = adaptive_NN_controller.nn_input[1]
-            nn_io.nn_input.z = adaptive_NN_controller.nn_input[2]
-            nn_io.nn_output.x = adaptive_NN_controller.vel_real[0]
-            nn_io.nn_output.y = adaptive_NN_controller.vel_real[1]
-            nn_io.nn_output.z = adaptive_NN_controller.vel_real[2]
-            nn_pub.publish(nn_io)
+            if(adaptive_NN_controller.enable):
+                nn_io.header.stamp = rospy.Time.now()
+                nn_io.nn_input.x = adaptive_NN_controller.nn_input[0]
+                nn_io.nn_input.y = adaptive_NN_controller.nn_input[1]
+                nn_io.nn_input.z = adaptive_NN_controller.nn_input[2]
+                nn_io.nn_output.x = adaptive_NN_controller.vel_real[0]
+                nn_io.nn_output.y = adaptive_NN_controller.vel_real[1]
+                nn_io.nn_output.z = adaptive_NN_controller.vel_real[2]
+                nn_pub.publish(nn_io)
 
 
             #Save info to csv
@@ -224,7 +231,7 @@ def adaptive_NN_controller():
                                 'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
                                 'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
                                 'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),
-                                'vc': str(control.vc),'wc': str(control.wc)})
+                                'vc': str(control.vc),'wc': str(control.wc),'kx': str(control.wc),'ky': str(control.wc),'kt': str(control.wc)})
             rate.sleep()
 
 

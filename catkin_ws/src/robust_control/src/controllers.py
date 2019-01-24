@@ -2,14 +2,14 @@ import numpy as np
 import math
 import rospy
 import threading
-from keras.models import Sequential
-from keras.layers import Dense, Activation
-from keras import optimizers
-from keras.preprocessing import sequence
-from keras.utils import np_utils
-from keras.models import load_model
-from keras.models import save_model
-from keras.applications import imagenet_utils
+# from keras.models import Sequential
+# from keras.layers import Dense, Activation
+# from keras import optimizers
+# from keras.preprocessing import sequence
+# from keras.utils import np_utils
+# from keras.models import load_model
+# from keras.models import save_model
+# from keras.applications import imagenet_utils
 
 
 class KinematicController(object):
@@ -140,16 +140,16 @@ class StableController(KinematicController):
 class AdaptiveNNController(KinematicController):
     def __init__(self, initial_time):
         super(AdaptiveNNController, self).__init__(initial_time)
-        self.k_yaw = 2.0
-        self.k_x = 0.5
-        self.k_y = 5.0
+        self.k_yaw = 1.0
+        self.k_x = 0.3
+        self.k_y = 2.5
         # Network Parameters
         self.num_outputs = 3
         self.num_hidden = 30
         self.num_inputs = 3
         # Backpropagation parameters
         self.gamma = np.matrix([[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
-        self.betta = np.array([1.0, 4.0, 3.0])
+        self.betta = np.array([0.2, 5.0, 3.0])
 
         # Network parameters
         self.v_weight = (np.random.rand(
@@ -215,17 +215,24 @@ class AdaptiveNNController(KinematicController):
             self.k_x = self.k_x - self.betta[0] * dF_da[0, 0]
             self.k_y = self.k_y - self.betta[1] * dF_da[0, 1]
             self.k_yaw = self.k_yaw - self.betta[2] * dF_da[0, 2]
+            if(self.k_x < 0.0):
+                self.k_x = 0.0
+            if(self.k_y < 0.0):
+                self.k_y = 0.0
+            if(self.k_yaw < 0.0):
+                self.k_yaw = 0.0
+
 
 
 class NeuralNetwork(object):
     def __init__(self):
-        self.nn_input_train = np.empty((0, self.num_inputs), float)
-        self.nn_output_train = np.empty((0, self.num_outputs), float)
-        self.training = False
         self.num_outputs = 3
         self.num_hidden = 30
         self.num_inputs = 3
-        self.batch_size = 500
+        self.batch_size = 2000
+        self.nn_input_train = np.empty((0, self.num_inputs), float)
+        self.nn_output_train = np.empty((0, self.num_outputs), float)
+        self.training = False
         # Model
         # Network parameters
         self.v_weight = (np.random.rand(
@@ -236,12 +243,5 @@ class NeuralNetwork(object):
         self.bias_out = (np.random.rand(self.num_outputs) - 0.5)*0.1
         self.model = None
         self.firstPublish = False
-        try:
-            self.model = load_model('agv_model.h5')
-            self.v_weight = self.model.layers[0].get_weights()[0]  # 3x30
-            self.bias_hidden = self.model.layers[0].get_weights()[1]
-            self.w_weight = self.model.layers[1].get_weights()[0]  # 30x3
-            self.bias_out = self.model.layers[1].get_weights()[1]
-            # TO DO: save weights in variable
-        except:
-            print("no model has been saved yet")
+        self.accuracy = 0.0
+        
