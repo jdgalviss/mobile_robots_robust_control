@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     Point p5(0.0, 0.0, M_PI * 2.0, M_PI * 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 16.0);
     //===========================defining circle trajectory=================
     float radius = 2.0f;
-    float final_time = 60.0f;
+    float final_time = 45.0f;
     Point initial_angle(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     Point final_angle(2*M_PI, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, final_time);
     circle_angle->calculateSpline(final_angle, initial_angle);

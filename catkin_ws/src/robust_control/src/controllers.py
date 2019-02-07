@@ -48,20 +48,20 @@ class KinematicController(object):
     def calculate_error(self):
         #yaw = self.pos_real[2]
         #yaw_ref = self.pos_ref[2]
-        if(self.pos_ref[2] - self.pos_real[2] > 1.0*3.1416):
+        if(self.pos_ref[2] - self.pos_real[2] > 0.75*3.1416):
             print("yaw_real negative, yaw_ref positive" +
                   str(self.pos_real[2]) + "  " + str(self.pos_ref[2]))
             self.pos_real[2] = self.pos_real[2] + 2*3.1416
         else:
-            if(self.pos_real[2] - self.pos_ref[2] > 1.0 * 3.1416):
+            if(self.pos_real[2] - self.pos_ref[2] > 0.75 * 3.1416):
                 print("yaw_real positive, yaw_ref negative" +
                       str(self.pos_real[2]) + "  " + str(self.pos_ref[2]))
                 self.pos_real[2] = self.pos_real[2] - 2*3.1416
-
-        error_q = self.pos_ref - self.pos_real
-        self.T = np.array([[math.cos(self.pos_real[2]), math.sin(self.pos_real[2]), 0], [
-                          -math.sin(self.pos_real[2]), math.cos(self.pos_real[2]), 0], [0, 0, 1]])
-        self.error = np.transpose(np.matmul(self.T, np.transpose(error_q)))
+        if(abs(self.pos_real[2] - self.pos_ref[2])<0.25 * 3.1416):
+            error_q = self.pos_ref - self.pos_real
+            self.T = np.array([[math.cos(self.pos_real[2]), math.sin(self.pos_real[2]), 0], [
+                            -math.sin(self.pos_real[2]), math.cos(self.pos_real[2]), 0], [0, 0, 1]])
+            self.error = np.transpose(np.matmul(self.T, np.transpose(error_q)))
 
     def calculate_d_error(self):
         xe_dot = self.vel_local_ref - self.vel_local_real * \
@@ -125,9 +125,9 @@ class SlidingModeController(KinematicController):
 class StableController(KinematicController):
     def __init__(self, initial_time):
         super(StableController, self).__init__(initial_time)
-        self.k_yaw = 2.0
-        self.k_x = 0.5
-        self.k_y = 5.0
+        self.k_yaw = 1.0
+        self.k_x = 1.0
+        self.k_y = 2.0
 
     def calculate_control(self, current_time):
         vc = self.vel_local_ref * \
@@ -141,15 +141,15 @@ class AdaptiveNNController(KinematicController):
     def __init__(self, initial_time):
         super(AdaptiveNNController, self).__init__(initial_time)
         self.k_yaw = 1.0
-        self.k_x = 0.3
+        self.k_x = 0.5
         self.k_y = 2.5
         # Network Parameters
         self.num_outputs = 3
         self.num_hidden = 30
         self.num_inputs = 3
         # Backpropagation parameters
-        self.gamma = np.matrix([[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])
-        self.betta = np.array([0.2, 5.0, 3.0])
+        self.gamma = np.matrix([[4.0, 0, 0], [0, 4.0, 0], [0, 0, 4.0]])
+        self.betta = np.array([0.7, 4.0, 3.0])
 
         # Network parameters
         self.v_weight = (np.random.rand(
@@ -163,6 +163,7 @@ class AdaptiveNNController(KinematicController):
         # Network IO
         self.nn_input = np.zeros((self.num_inputs,), dtype=float)
         self.nn_output = np.zeros((self.num_outputs,), dtype=float)
+        self.cost_function = 0.0
 
         # Training thread
         #self.t = threading.Thread(target=self.train_NN)
@@ -209,9 +210,10 @@ class AdaptiveNNController(KinematicController):
 
         # Calculate cost function
         dF_da = -self.error*self.gamma*self.T*dqi_dzk*dzl_dxj*duc_da
-
+        self.cost_function = self.gamma.item((0,0))*self.error[0]**2 + self.gamma.item((1,1))*self.error[1]**2 + self.gamma.item((2,2))*self.error[2]**2
+        print(self.cost_function)
         # Gradiend-descend algorithm to recalculate controller parameters
-        if(self.accuracy > 0.8):
+        if(self.accuracy > 0.85):
             self.k_x = self.k_x - self.betta[0] * dF_da[0, 0]
             self.k_y = self.k_y - self.betta[1] * dF_da[0, 1]
             self.k_yaw = self.k_yaw - self.betta[2] * dF_da[0, 2]

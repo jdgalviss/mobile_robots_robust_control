@@ -44,7 +44,7 @@ void Trajectory::splineParameters(float tf, float sf, float vi, float vf, float 
     //float t2 = tf*(1.0-4.0*m);
     //float v2 = (sf-t1*(vi+vf)+pow(t1,2)*(af-ai)/3.0)/(2*t1+t2);
     //float tf = sf / VX_MEAN;
-    float m = 1.0f / 10.0f;
+    float m = 1.0f / 40.0f;
     t1 = tf * m;
     t2 = tf * (1.0 - 4.0 * m);
     float v2 = (sf - 2.0 * t1 * vi / 3.0 - t1 * vi / 3.0 - t1 * vf / 3.0 - 2.0 * t1 * vf / 3.0 - ai * pow(t1, 2.0) / 6.0 + af * pow(t1, 2.0) / 6.0 - ai * t1 * t1 / 6.0 + af * t1 * t1 / 6.0) / (t1 / 3.0 + 2.0 * t1 / 3.0 + t2 + 2.0 * t1 / 3.0 + t1 / 3.0);

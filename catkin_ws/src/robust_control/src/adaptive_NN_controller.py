@@ -142,8 +142,10 @@ def adaptive_NN_controller():
     rate = rospy.Rate(50)  # 50hz
     # log to file to analyse data
     initial_time = rospy.get_time()
+    count = 0
+    count2 = 0
     with open('simulation_adaptive_NN_controller_data.csv', mode='w') as csv_file:
-        fieldnames = ['time', 'x', 'y', 'yaw', 'd_x', 'd_y', 'd_yaw', 'x_ref', 'y_ref', 'yaw_ref', 'd_x_ref', 'd_y_ref', 'd_yaw_ref','xe', 'ye', 'yaw_e', 'vx_local', 'vx_local_ref', 'vc', 'wc', 'kx', 'ky', 'kt' ]
+        fieldnames = ['time', 'x', 'y', 'yaw', 'd_x', 'd_y', 'd_yaw', 'x_ref', 'y_ref', 'yaw_ref', 'd_x_ref', 'd_y_ref', 'd_yaw_ref','xe', 'ye', 'yaw_e', 'vx_local', 'vx_local_ref', 'vc', 'wc', 'kx', 'ky', 'kt', 'accuracy', 'cost' ]
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
         while not rospy.is_shutdown():
@@ -180,35 +182,39 @@ def adaptive_NN_controller():
                     cmd_msg.angular.z = adaptive_NN_controller.u_control[1]
             cmd_pub.publish(cmd_msg)
             # publish control Topic for debug
-            
-            control.header.stamp = rospy.Time.now()
-            control.xe = adaptive_NN_controller.error[0]
-            control.ye = adaptive_NN_controller.error[1]
-            control.yaw_e = adaptive_NN_controller.error[2]
-            control.d_xe = adaptive_NN_controller.d_error[0]
-            control.d_ye = adaptive_NN_controller.d_error[1]
-            control.d_yaw_e = adaptive_NN_controller.d_error[2]
-            control.x =  adaptive_NN_controller.pos_real[0]
-            control.y = adaptive_NN_controller.pos_real[1]
-            control.yaw = adaptive_NN_controller.pos_real[2]
-            control.d_x =  adaptive_NN_controller.vel_real[0]
-            control.d_y = adaptive_NN_controller.vel_real[1]
-            control.d_yaw = adaptive_NN_controller.vel_real[2]
-            control.x_ref =  adaptive_NN_controller.pos_ref[0]
-            control.y_ref = adaptive_NN_controller.pos_ref[1]
-            control.yaw_ref = adaptive_NN_controller.pos_ref[2]
-            control.d_x_ref =  adaptive_NN_controller.vel_ref[0]
-            control.d_y_ref = adaptive_NN_controller.vel_ref[1]
-            control.d_yaw_ref = adaptive_NN_controller.vel_ref[2]
-            control.vx_local_ref = adaptive_NN_controller.vel_local_ref
-            control.vx_local = adaptive_NN_controller.vel_local_real
-            control.kx = adaptive_NN_controller.k_x
-            control.ky = adaptive_NN_controller.k_y
-            control.kt = adaptive_NN_controller.k_yaw
-            control.vc = cmd_msg.linear.x 
-            control.wc = cmd_msg.angular.z 
-            
-            log_pub.publish(control)
+            if(count2 >= 5):
+                count2 = 0
+                control.header.stamp = rospy.Time.now()
+                control.xe = adaptive_NN_controller.error[0]
+                control.ye = adaptive_NN_controller.error[1]
+                control.yaw_e = adaptive_NN_controller.error[2]
+                control.d_xe = adaptive_NN_controller.d_error[0]
+                control.d_ye = adaptive_NN_controller.d_error[1]
+                control.d_yaw_e = adaptive_NN_controller.d_error[2]
+                control.x =  adaptive_NN_controller.pos_real[0]
+                control.y = adaptive_NN_controller.pos_real[1]
+                control.yaw = adaptive_NN_controller.pos_real[2]
+                control.d_x =  adaptive_NN_controller.vel_real[0]
+                control.d_y = adaptive_NN_controller.vel_real[1]
+                control.d_yaw = adaptive_NN_controller.vel_real[2]
+                control.x_ref =  adaptive_NN_controller.pos_ref[0]
+                control.y_ref = adaptive_NN_controller.pos_ref[1]
+                control.yaw_ref = adaptive_NN_controller.pos_ref[2]
+                control.d_x_ref =  adaptive_NN_controller.vel_ref[0]
+                control.d_y_ref = adaptive_NN_controller.vel_ref[1]
+                control.d_yaw_ref = adaptive_NN_controller.vel_ref[2]
+                control.vx_local_ref = adaptive_NN_controller.vel_local_ref
+                control.vx_local = adaptive_NN_controller.vel_local_real
+                control.kx = adaptive_NN_controller.k_x
+                control.ky = adaptive_NN_controller.k_y
+                control.kt = adaptive_NN_controller.k_yaw
+                control.vc = cmd_msg.linear.x 
+                control.wc = cmd_msg.angular.z
+                control.cost = adaptive_NN_controller.cost_function
+                
+                log_pub.publish(control)
+            else:
+                count2 = count2 + 1
 
             #Publish for network training
             if(adaptive_NN_controller.enable):
@@ -224,14 +230,19 @@ def adaptive_NN_controller():
 
             #Save info to csv
             if(adaptive_NN_controller.enable):
-                current_time = (rospy.get_time() - initial_time)
-                writer.writerow({'time':current_time, 'x': str(control.x), 'y': str(control.y), 'yaw': str(control.yaw),
-                                'd_x': str(control.d_x), 'd_y': str(control.d_y), 'd_yaw': str(control.d_yaw),
-                                'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw': str(control.yaw_ref),
-                                'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
-                                'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
-                                'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),
-                                'vc': str(control.vc),'wc': str(control.wc),'kx': str(control.wc),'ky': str(control.wc),'kt': str(control.wc)})
+                if(count >= 5):
+                    count = 0
+                    current_time = (rospy.get_time() - initial_time)
+                    writer.writerow({'time':current_time, 'x': str(control.x), 'y': str(control.y), 'yaw': str(control.yaw),
+                                    'd_x': str(control.d_x), 'd_y': str(control.d_y), 'd_yaw': str(control.d_yaw),
+                                    'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw': str(control.yaw_ref),
+                                    'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
+                                    'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
+                                    'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),
+                                    'vc': str(control.vc),'wc': str(control.wc),'kx': str(control.kx),'ky': str(control.ky),'kt': str(control.kt),
+                                    'accuracy': adaptive_NN_controller.accuracy, 'cost': control.cost})
+                else:
+                    count = count + 1
             rate.sleep()
 
 

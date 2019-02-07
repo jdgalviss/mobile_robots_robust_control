@@ -24,3 +24,4 @@ float32 wc
 float32 kx
 float32 ky
 float32 kt
+float32 cost
