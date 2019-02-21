@@ -49,7 +49,7 @@ def train_nn():
                      callback_io, neural_network)
     # rospy.Subscriber('slam_out_pose', PoseStamped, callback_pose, train_nn)
     nn_weights = NetworkWeights()
-    rate = rospy.Rate(50)  # 50hz
+    rate = rospy.Rate(40)  # 50hz
     # log to file to analyse data
     while not rospy.is_shutdown():
         if(neural_network.training):
@@ -72,7 +72,7 @@ def train_nn():
                                     neural_network.nn_output_train, epochs=100, verbose=1)
             
             scores = neural_network.model.evaluate(neural_network.nn_input_train, neural_network.nn_output_train, verbose=0)
-            if(scores[1]*100.0 > 85):
+            if(scores[1]*100.0 > 90):
                 neural_network.model.save("agv_model.h5")
             rospy.loginfo("Model Accuracy: %.2f%%" % (scores[1]*100))
 

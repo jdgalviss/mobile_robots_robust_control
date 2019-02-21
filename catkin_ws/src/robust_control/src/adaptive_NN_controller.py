@@ -23,9 +23,9 @@ def callback_ref(data, adaptive_NN_controller):
         yaw = yaw - 2*math.pi
     adaptive_NN_controller.pos_ref = np.array([data.x, data.y, yaw])
     adaptive_NN_controller.vel_ref = np.array([data.vx, data.vy, data.yaw_speed])
-    adaptive_NN_controller.accel_ref = np.array([data.ax, data.ay, data.yaw_acceleration])
+    #adaptive_NN_controller.accel_ref = np.array([data.ax, data.ay, data.yaw_acceleration])
     adaptive_NN_controller.vel_local_ref = data.vx_local
-    adaptive_NN_controller.accel_local_ref = data.ax_local
+    #adaptive_NN_controller.accel_local_ref = data.ax_local
     if(not adaptive_NN_controller.enable and adaptive_NN_controller.vel_local_ref != 0.0):
         adaptive_NN_controller.enable = True
         
@@ -72,8 +72,9 @@ def calculate_pose(trans, rot, adaptive_NN_controller):
     # Calculate current yaw from quaternion
     #print(rot)
     #Restart current_pose
-    yaw = math.atan2((2*(rot[3]*rot[2])),
-                     ((1-2*(math.pow(rot[2], 2)))))
+    euler = tf.transformations.euler_from_quaternion(rot)
+    yaw = euler[2]
+    
     if(not adaptive_NN_controller.enable):
         #print("calculating offset")
         adaptive_NN_controller.offset = np.array([trans[0], trans[1], yaw])
@@ -89,15 +90,22 @@ def calculate_pose(trans, rot, adaptive_NN_controller):
         previous_pose = np.copy(adaptive_NN_controller.pos_real)
         adaptive_NN_controller.filter_position(
             np.array([[trans[0] - adaptive_NN_controller.offset[0], trans[1] - adaptive_NN_controller.offset[1], yaw - adaptive_NN_controller.offset[2]]]))
-        
         actual_pose = np.copy(adaptive_NN_controller.pos_real)
+        #make orientation continuous
         if(actual_pose[2] - previous_pose[2] > math.pi):
             actual_pose[2] = actual_pose[2] - 2*math.pi
         else:
             if(actual_pose[2] - previous_pose[2] < -math.pi):
-                actual_pose[2] = actual_pose[2] + 2*math.pi 
+                actual_pose[2] = actual_pose[2] + 2*math.pi
 
         actual_speed = (actual_pose - previous_pose) / dt
+
+        #Avoid jumps in orientation due to singularities 
+        if(abs(actual_pose[2] - previous_pose[2]) > 0.2*math.pi):
+            actual_pose[2] = previous_pose[2]
+            actual_speed[2] = adaptive_NN_controller.vel_real[2]
+
+        
 
         # calculate accelerations
         # adaptive_NN_controller.accel_real = (actual_speed - adaptive_NN_controller.vel_real) / dt
@@ -116,7 +124,7 @@ def calculate_pose(trans, rot, adaptive_NN_controller):
 
 def callback_weights(data, adaptive_NN_controller):
     adaptive_NN_controller.accuracy = data.accuracy
-    if(data.accuracy > 80):
+    if(data.accuracy > 90):
         adaptive_NN_controller.v_weight = np.array([data.weightsV_1,data.weightsV_2,data.weightsV_3])
         adaptive_NN_controller.w_weight = np.transpose(np.array([data.weightsW_1,data.weightsW_2,data.weightsW_3]))
         adaptive_NN_controller.bias_hidden = data.bias_hidden
@@ -139,7 +147,7 @@ def adaptive_NN_controller():
     nn_io = NetworkIO()
     control = Control()
 
-    rate = rospy.Rate(50)  # 50hz
+    rate = rospy.Rate(40)  # 50hz
     # log to file to analyse data
     initial_time = rospy.get_time()
     count = 0
@@ -180,9 +188,13 @@ def adaptive_NN_controller():
                     cmd_msg.angular.z = -3.0
                 else:
                     cmd_msg.angular.z = adaptive_NN_controller.u_control[1]
+            # if(adaptive_NN_controller.pos_ref[2] < 0.0):
+            #     rospy.loginfo("second stage")
+            #     cmd_msg.linear.x = cmd_msg.linear.x*0.7
+            #     cmd_msg.angular.z = cmd_msg.angular.z*0.7
             cmd_pub.publish(cmd_msg)
             # publish control Topic for debug
-            if(count2 >= 5):
+            if(count2 >= 10):
                 count2 = 0
                 control.header.stamp = rospy.Time.now()
                 control.xe = adaptive_NN_controller.error[0]
@@ -235,7 +247,7 @@ def adaptive_NN_controller():
                     current_time = (rospy.get_time() - initial_time)
                     writer.writerow({'time':current_time, 'x': str(control.x), 'y': str(control.y), 'yaw': str(control.yaw),
                                     'd_x': str(control.d_x), 'd_y': str(control.d_y), 'd_yaw': str(control.d_yaw),
-                                    'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw': str(control.yaw_ref),
+                                    'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw_ref': str(control.yaw_ref),
                                     'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
                                     'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
                                     'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),

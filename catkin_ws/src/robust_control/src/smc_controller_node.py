@@ -23,7 +23,7 @@ def callback_ref(data, smc):
     smc.vel_ref = np.array([data.vx, data.vy, data.yaw_speed])
     smc.accel_ref = np.array([data.ax, data.ay, data.yaw_acceleration])
     smc.vel_local_ref = data.vx_local
-    smc.accel_local_ref = data.ax_local
+    #smc.accel_local_ref = data.ax_local
     if(not smc.enable and smc.vel_local_ref != 0.0):
         smc.enable = True
         
@@ -70,8 +70,8 @@ def calculate_pose(trans, rot, smc):
     # Calculate current yaw from quaternion
     #print(rot)
     #Restart current_pose
-    yaw = math.atan2((2*(rot[3]*rot[2])),
-                     ((1-2*(math.pow(rot[2], 2)))))
+    euler = tf.transformations.euler_from_quaternion(rot)
+    yaw = euler[2]
     if(not smc.enable):
         #print("calculating offset")
         smc.offset = np.array([trans[0], trans[1], yaw])
@@ -87,8 +87,8 @@ def calculate_pose(trans, rot, smc):
         previous_pose = np.copy(smc.pos_real)
         smc.filter_position(
             np.array([[trans[0] - smc.offset[0], trans[1] - smc.offset[1], yaw - smc.offset[2]]]))
-        
         actual_pose = np.copy(smc.pos_real)
+        #make orientation continuous
         if(actual_pose[2] - previous_pose[2] > math.pi):
             actual_pose[2] = actual_pose[2] - 2*math.pi
         else:
@@ -96,6 +96,10 @@ def calculate_pose(trans, rot, smc):
                 actual_pose[2] = actual_pose[2] + 2*math.pi 
 
         actual_speed = (actual_pose - previous_pose) / dt
+         #Avoid jumps in orientation due to singularities 
+        if(abs(actual_pose[2] - previous_pose[2]) > 0.2*math.pi):
+            actual_pose[2] = previous_pose[2]
+            actual_speed[2] = smc.vel_real[2]
 
         # calculate accelerations
         # smc.accel_real = (actual_speed - smc.vel_real) / dt
@@ -105,7 +109,7 @@ def calculate_pose(trans, rot, smc):
         vel_local = smc.vel_real[0]*math.cos(smc.pos_real[2]) + \
                                              smc.vel_real[1] * \
                                                  math.sin(smc.pos_real[2])
-        smc.accel_local_real = (vel_local - smc.vel_local_real) / dt
+        #smc.accel_local_real = (vel_local - smc.vel_local_real) / dt
         #smc.accel_local_real = 0.0
         smc.vel_local_real = vel_local
     else:
@@ -161,6 +165,10 @@ def smc_controller():
                     cmd_msg.angular.z = -3.0
                 else:
                     cmd_msg.angular.z = smc.u_control[1]
+            # if(smc.pos_ref[2] < 0.0):
+            #     rospy.loginfo("second stage")
+            #     cmd_msg.linear.x = cmd_msg.linear.x*0.7
+            #     cmd_msg.angular.z = cmd_msg.angular.z*0.7
             cmd_pub.publish(cmd_msg)
             # publish control Topic for debug
             control = Control()
@@ -194,7 +202,7 @@ def smc_controller():
                 current_time = (rospy.get_time() - initial_time)
                 writer.writerow({'time':current_time, 'x': str(control.x), 'y': str(control.y), 'yaw': str(control.yaw),
                                 'd_x': str(control.d_x), 'd_y': str(control.d_y), 'd_yaw': str(control.d_yaw),
-                                'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw': str(control.yaw_ref),
+                                'x_ref': str(control.x_ref), 'y_ref': str(control.y_ref), 'yaw_ref': str(control.yaw_ref),
                                 'd_x_ref': str(control.d_x_ref), 'd_y_ref': str(control.d_y_ref), 'd_yaw_ref': str(control.d_yaw_ref), 
                                 'xe': str(control.xe), 'ye': str(control.ye), 'yaw_e': str(control.yaw_e),
                                 'vx_local': str(control.vx_local), 'vx_local_ref': str(control.vx_local_ref),
@@ -207,6 +215,4 @@ if __name__ == '__main__':
         smc_controller()
     except rospy.ROSInterruptException:
         pass
-        global om_intvx_int
-        global om_intvx_int
         # global om_int
