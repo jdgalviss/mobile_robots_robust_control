@@ -3,8 +3,10 @@
 This repository includes simulation and some tools to design and simulate robust trajectory tracking control algorithms for mobile robots. Two cases are presented:
 * Sliding Mode Control
 * Adaptive Neural Networks based Control
+
 This project is implemented in ROS and was tested with ROS Kinetic and Ubuntu Xenial 16.04
-[//]: # (Image References)
+
+
 
 [image1]: ./catkin_ws/src/robust_control/measurements/simulation.png "Simulation"
 
