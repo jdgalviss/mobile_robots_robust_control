@@ -1,0 +1,2 @@
+<node name="annc_controller" pkg="robust_control" type="adaptive_NN_controller.py" respawn="false" output="screen" />
+<node name="soft_trajectory" pkg="soft_trajectory_generation" type="trajectory_node" respawn="false" output="screen" />

@@ -57,7 +57,7 @@ class KinematicController(object):
                 print("yaw_real positive, yaw_ref negative" +
                       str(self.pos_real[2]) + "  " + str(self.pos_ref[2]))
                 self.pos_real[2] = self.pos_real[2] - 2*3.1416
-        if(abs(self.pos_real[2] - self.pos_ref[2])<0.2 * 3.1416):
+        if(abs(self.pos_real[2] - self.pos_ref[2])<0.6 * 3.1416):
             error_q = self.pos_ref - self.pos_real
             self.T = np.array([[math.cos(self.pos_real[2]), math.sin(self.pos_real[2]), 0], [
                             -math.sin(self.pos_real[2]), math.cos(self.pos_real[2]), 0], [0, 0, 1]])
@@ -149,7 +149,7 @@ class AdaptiveNNController(KinematicController):
         self.num_inputs = 3
         # Backpropagation parameters
         self.gamma = np.matrix([[1.0, 0, 0], [0, 5.0, 0], [0, 0, 1.8]])
-        self.betta = 1.0*np.array([0.3, 7.5, 0.9])
+        self.betta = 0.3*np.array([0.3, 7.5, 0.9])
 
         # Network parameters
         self.v_weight = (np.random.rand(
