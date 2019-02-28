@@ -141,7 +141,8 @@ add_executable(trajectory_node
 target_link_libraries(trajectory_node
    ${catkin_LIBRARIES}
  )
-add_dependencies(trajectory_node trajectory_generate_messages_cpp)
+#add_dependencies(trajectory_node trajectory_generate_messages_cpp)
+add_dependencies(trajectory_node ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
