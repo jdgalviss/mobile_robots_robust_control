@@ -1,0 +1,4 @@
+type: 'circle'
+mean_speed: 0.35
+square_side_length: 4.0
+circle_radius: 2.0

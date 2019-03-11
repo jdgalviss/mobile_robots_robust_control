@@ -4,7 +4,6 @@
 #include <cmath>
 #include <soft_trajectory_generation/trajectory.h>
 
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "motion_control");
@@ -19,6 +18,24 @@ int main(int argc, char **argv)
     float mean_speed = 0.40; //  [m/s]
     float square_side_length = 4.0f;
     float circle_radius = 2.0f;
+    std::string trajectory_type_str;
+
+    //================Load Parameters===============
+    // nh.param<float>("type", trajectory_type, circle);
+    // nh.param<float>("mean_speed", mean_speed, 0.40f);
+    // nh.param<float>("square_side", square_side_length, 4.0f);
+    // nh.param<float>("circle_radius", square_side_length, 2.0f);
+
+    nh.getParam("/type", trajectory_type_str);
+    nh.getParam("/mean_speed", mean_speed);
+    nh.getParam("/square_side_length", square_side_length);
+    nh.getParam("/circle_radius", circle_radius);
+    if(trajectory_type_str.compare("circle")==0)
+        trajectory_type = circle;
+    else
+        trajectory_type = rectangle;
+    
+    ROS_INFO("mean_speed: %0.4f", mean_speed);
     //=====================Controller===================
     Trajectory *trajectory = new Trajectory(nh);
     Trajectory *circle_angle = new Trajectory(nh);
